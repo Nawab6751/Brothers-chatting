@@ -4,25 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BROTHERS CHAT | NAWAB ZADA</title>
-    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <style>
-        body { margin: 0; background: #050505; color: #00ff41; font-family: 'Courier New', monospace; overflow: hidden; }
+        body { margin: 0; background: #050505; color: #00ff41; font-family: 'Courier New', monospace; }
         .banner { background: linear-gradient(90deg, #064420, #000); color: #D4AF37; padding: 20px; text-align: center; border-bottom: 3px solid #D4AF37; box-shadow: 0 0 20px #D4AF37; }
         .banner h1 { margin: 0; font-size: 1.5rem; text-shadow: 2px 2px #000; }
         
         #login-area { height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        .auth-box { border: 2px solid #D4AF37; padding: 30px; background: rgba(0,0,0,0.9); box-shadow: 0 0 15px #D4AF37; text-align: center; border-radius: 10px; width: 80%; max-width: 350px; }
+        .auth-box { border: 2px solid #D4AF37; padding: 30px; background: rgba(0,0,0,0.9); box-shadow: 0 0 15px #D4AF37; text-align: center; border-radius: 10px; width: 85%; max-width: 350px; }
         
-        #chat-container { display: none; padding: 15px; max-width: 600px; margin: auto; height: 80vh; flex-direction: column; }
-        #messages { flex: 1; overflow-y: auto; border: 1px solid #00ff41; padding: 10px; margin-bottom: 10px; background: rgba(0,255,65,0.05); border-radius: 5px; }
+        #chat-container { display: none; padding: 15px; max-width: 600px; margin: auto; height: 85vh; flex-direction: column; }
+        #messages { flex: 1; overflow-y: auto; border: 1px solid #00ff41; padding: 15px; margin-bottom: 10px; background: rgba(0,255,65,0.05); border-radius: 5px; }
         
-        .msg-line { margin: 10px 0; word-wrap: break-word; }
-        .msg-name { color: #D4AF37; font-weight: bold; }
-        .my-msg { color: #fff; }
+        .msg-line { margin-bottom: 12px; border-left: 2px solid #D4AF37; padding-left: 10px; background: rgba(255,255,255,0.02); padding: 8px; }
+        .msg-name { color: #D4AF37; font-weight: bold; font-size: 0.9rem; }
+        .msg-text { color: #fff; display: block; margin-top: 4px; }
         
-        .input-area { display: flex; gap: 8px; }
-        input { background: #111; border: 1px solid #00ff41; color: #fff; padding: 12px; outline: none; border-radius: 5px; width: 100%; box-sizing: border-box; }
-        button { background: #00ff41; color: #000; border: none; padding: 12px 20px; cursor: pointer; font-weight: bold; border-radius: 5px; }
+        .input-area { display: flex; gap: 8px; padding-bottom: 10px; }
+        input { background: #111; border: 1px solid #00ff41; color: #fff; padding: 12px; outline: none; border-radius: 5px; width: 100%; }
+        button { background: #00ff41; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; border-radius: 5px; }
         .btn-pic { background: #D4AF37; }
     </style>
 </head>
@@ -34,22 +34,22 @@
 
 <div id="login-area">
     <div class="auth-box">
-        <h3>🔐 PRIVATE ACCESS</h3>
+        <h3>🔐 BUNKER ACCESS</h3>
         <input type="password" id="passInput" placeholder="Password...">
         <br><br>
-        <input type="text" id="userName" placeholder="Apna Naam (Nawab, etc)">
+        <input type="text" id="userName" placeholder="Your Name">
         <br><br>
-        <button onclick="accessChat()">OPEN BUNKER</button>
+        <button onclick="accessChat()">UNLOCK</button>
     </div>
 </div>
 
 <div id="chat-container">
     <div id="messages"></div>
     <div class="input-area">
-        <input type="text" id="msgInput" placeholder="Type message..." onkeypress="if(event.keyCode==13) sendMsg()">
+        <input type="text" id="msgInput" placeholder="Write message..." onkeypress="if(event.keyCode==13) sendMsg()">
         <button onclick="sendMsg()">SEND</button>
     </div>
-    <div style="margin-top:10px; display: flex; gap: 5px;">
+    <div style="display: flex; gap: 5px;">
         <input type="file" id="fileInput" style="display:none;" onchange="uploadFile(this.files[0])">
         <button class="btn-pic" onclick="document.getElementById('fileInput').click()">📎 PIC</button>
         <button onclick="location.reload()" style="background: red; color: white;">LOCK</button>
@@ -57,9 +57,10 @@
 </div>
 
 <script>
-    // Nawab Private Connection Key (Direct & Realtime)
-    const ably = new Ably.Realtime('h3A96A.89z7pQ:uR6S8-e1R9-6X6-X'); 
-    const channel = ably.channels.get('nawab-brothers-room');
+    // GunDB Initialization (Pure Peer-to-Peer)
+    const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+    const chat = gun.get('nawab_brothers_secret_v10');
+
     let currentUser = "";
 
     function accessChat() {
@@ -69,50 +70,59 @@
         if(pass === "nawab786" && currentUser !== "") {
             document.getElementById('login-area').style.display = "none";
             document.getElementById('chat-container').style.display = "flex";
-            
-            // Bhaiyo ko batane ke liye ke Nawab online aa gaya
-            channel.publish('msg', { user: "SYSTEM", text: `${currentUser} joined the bunker.`, type: 'text' });
+            listenMessages();
         } else {
             alert("WRONG PASSWORD OR NAME!");
         }
     }
 
-    // Message Bhejna
     function sendMsg() {
-        const msg = document.getElementById('msgInput').value;
-        if(msg) {
-            channel.publish('msg', { user: currentUser, text: msg, type: 'text' });
+        const msgText = document.getElementById('msgInput').value;
+        if(msgText) {
+            chat.set({
+                user: currentUser,
+                text: msgText,
+                type: 'text',
+                time: Date.now()
+            });
             document.getElementById('msgInput').value = "";
         }
     }
 
-    // Photo Bhejna
     function uploadFile(file) {
         if(file) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                channel.publish('msg', { user: currentUser, text: e.target.result, type: 'image' });
+                chat.set({
+                    user: currentUser,
+                    text: e.target.result,
+                    type: 'image',
+                    time: Date.now()
+                });
             };
             reader.readAsDataURL(file);
         }
     }
 
-    // Messages Receive Karna (Real-time for everyone)
-    channel.subscribe('msg', (message) => {
-        const data = message.data;
+    function listenMessages() {
         const msgBox = document.getElementById('messages');
-        const div = document.createElement('div');
-        div.className = "msg-line";
-        
-        if(data.type === 'text') {
-            div.innerHTML = `<span class="msg-name">${data.user}:</span> <span class="my-msg">${data.text}</span>`;
-        } else {
-            div.innerHTML = `<span class="msg-name">${data.user}:</span><br><img src="${data.text}" style="max-width:200px; border-radius:10px; border: 1px solid #00ff41; margin-top:5px;">`;
-        }
-        
-        msgBox.appendChild(div);
-        msgBox.scrollTop = msgBox.scrollHeight;
-    });
+        // Messages ko listen karna
+        chat.map().once((data, id) => {
+            if (!data || !data.user) return;
+            
+            const div = document.createElement('div');
+            div.className = "msg-line";
+            
+            if(data.type === 'text') {
+                div.innerHTML = `<span class="msg-name">${data.user}:</span><span class="msg-text">${data.text}</span>`;
+            } else {
+                div.innerHTML = `<span class="msg-name">${data.user}:</span><br><img src="${data.text}" style="max-width:100%; border-radius:10px; border: 1px solid #00ff41; margin-top:5px;">`;
+            }
+            
+            msgBox.appendChild(div);
+            msgBox.scrollTop = msgBox.scrollHeight;
+        });
+    }
 </script>
 
 </body>
