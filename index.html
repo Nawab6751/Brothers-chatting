@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BROTHERS CHAT | NAWAB ZADA</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { margin: 0; background: #050505; color: #00ff41; font-family: 'Courier New', monospace; }
+        .banner { background: linear-gradient(90deg, #064420, #000); color: #D4AF37; padding: 20px; text-align: center; border-bottom: 3px solid #D4AF37; box-shadow: 0 0 20px #D4AF37; }
+        .banner h1 { margin: 0; font-size: 1.8rem; text-shadow: 2px 2px #000; }
+        
+        /* Login Area */
+        #login-area { height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        .auth-box { border: 2px solid #D4AF37; padding: 30px; background: rgba(0,0,0,0.9); box-shadow: 0 0 15px #D4AF37; text-align: center; border-radius: 10px; }
+        
+        /* Chat Area */
+        #chat-container { display: none; padding: 15px; max-width: 600px; margin: auto; height: 85vh; flex-direction: column; }
+        #messages { flex: 1; overflow-y: auto; border: 1px solid #00ff41; padding: 10px; margin-bottom: 10px; background: rgba(0,255,65,0.05); }
+        
+        .msg-line { margin: 8px 0; border-bottom: 1px solid rgba(0,255,65,0.1); padding-bottom: 5px; }
+        .msg-name { color: #D4AF37; font-weight: bold; }
+        
+        .input-area { display: flex; gap: 8px; }
+        input { background: #111; border: 1px solid #00ff41; color: #fff; padding: 12px; outline: none; border-radius: 5px; }
+        button { background: #00ff41; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; border-radius: 5px; }
+        .btn-pic { background: #D4AF37; color: #000; }
+    </style>
+</head>
+<body>
+
+<div class="banner">
+    <h1>Nawab ZADA Brothers 💓</h1>
+</div>
+
+<div id="login-area">
+    <div class="auth-box">
+        <h3>🔐 ENTER PRIVATE KEY</h3>
+        <input type="password" id="passInput" placeholder="Password...">
+        <br><br>
+        <input type="text" id="userName" placeholder="Apna Naam (e.g. Nawab)">
+        <br><br>
+        <button onclick="accessChat()">ACCESS CHAT</button>
+    </div>
+</div>
+
+<div id="chat-container">
+    <div id="messages"></div>
+    <div class="input-area">
+        <input type="text" id="msgInput" style="flex:1;" placeholder="Type message...">
+        <button onclick="sendMsg()">SEND</button>
+    </div>
+    <div style="margin-top:10px; display: flex; gap: 5px;">
+        <input type="file" id="fileInput" style="display:none;" onchange="uploadFile(this.files[0])">
+        <button class="btn-pic" onclick="document.getElementById('fileInput').click()">📎 IMAGE</button>
+        <button onclick="location.reload()" style="background: red; color: white;">LOGOUT</button>
+    </div>
+</div>
+
+<script>
+    // Firebase Configuration (Publicly usable for demo)
+    const firebaseConfig = {
+        databaseURL: "https://nawab-chat-default-rtdb.firebaseio.com/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database().ref("messages");
+
+    let currentUser = "";
+
+    function accessChat() {
+        const pass = document.getElementById('passInput').value;
+        currentUser = document.getElementById('userName').value;
+
+        if(pass === "nawab786" && currentUser !== "") {
+            document.getElementById('login-area').style.display = "none";
+            document.getElementById('chat-container').style.display = "flex";
+            loadMessages();
+        } else {
+            alert("WRONG PASSWORD OR NAME MISSING!");
+        }
+    }
+
+    function sendMsg() {
+        const msg = document.getElementById('msgInput').value;
+        if(msg) {
+            db.push().set({
+                user: currentUser,
+                message: msg,
+                type: 'text',
+                time: Date.now()
+            });
+            document.getElementById('msgInput').value = "";
+        }
+    }
+
+    function uploadFile(file) {
+        if(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                db.push().set({
+                    user: currentUser,
+                    message: e.target.result,
+                    type: 'image',
+                    time: Date.now()
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function loadMessages() {
+        db.on('child_added', (snapshot) => {
+            const data = snapshot.val();
+            const msgBox = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = "msg-line";
+            
+            if(data.type === 'text') {
+                div.innerHTML = `<span class="msg-name">${data.user}:</span> ${data.message}`;
+            } else {
+                div.innerHTML = `<span class="msg-name">${data.user}:</span><br><img src="${data.message}" style="max-width:100%; border-radius:10px; margin-top:5px;">`;
+            }
+            
+            msgBox.appendChild(div);
+            msgBox.scrollTop = msgBox.scrollHeight;
+        });
+    }
+</script>
+
+</body>
+</html>
