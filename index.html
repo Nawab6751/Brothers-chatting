@@ -4,28 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BROTHERS CHAT | NAWAB ZADA</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.ably.com/lib/ably.min-1.js"></script>
     <style>
-        body { margin: 0; background: #050505; color: #00ff41; font-family: 'Courier New', monospace; }
+        body { margin: 0; background: #050505; color: #00ff41; font-family: 'Courier New', monospace; overflow: hidden; }
         .banner { background: linear-gradient(90deg, #064420, #000); color: #D4AF37; padding: 20px; text-align: center; border-bottom: 3px solid #D4AF37; box-shadow: 0 0 20px #D4AF37; }
-        .banner h1 { margin: 0; font-size: 1.8rem; text-shadow: 2px 2px #000; }
+        .banner h1 { margin: 0; font-size: 1.5rem; text-shadow: 2px 2px #000; }
         
-        /* Login Area */
         #login-area { height: 80vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-        .auth-box { border: 2px solid #D4AF37; padding: 30px; background: rgba(0,0,0,0.9); box-shadow: 0 0 15px #D4AF37; text-align: center; border-radius: 10px; }
+        .auth-box { border: 2px solid #D4AF37; padding: 30px; background: rgba(0,0,0,0.9); box-shadow: 0 0 15px #D4AF37; text-align: center; border-radius: 10px; width: 80%; max-width: 350px; }
         
-        /* Chat Area */
-        #chat-container { display: none; padding: 15px; max-width: 600px; margin: auto; height: 85vh; flex-direction: column; }
-        #messages { flex: 1; overflow-y: auto; border: 1px solid #00ff41; padding: 10px; margin-bottom: 10px; background: rgba(0,255,65,0.05); }
+        #chat-container { display: none; padding: 15px; max-width: 600px; margin: auto; height: 80vh; flex-direction: column; }
+        #messages { flex: 1; overflow-y: auto; border: 1px solid #00ff41; padding: 10px; margin-bottom: 10px; background: rgba(0,255,65,0.05); border-radius: 5px; }
         
-        .msg-line { margin: 8px 0; border-bottom: 1px solid rgba(0,255,65,0.1); padding-bottom: 5px; }
+        .msg-line { margin: 10px 0; word-wrap: break-word; }
         .msg-name { color: #D4AF37; font-weight: bold; }
+        .my-msg { color: #fff; }
         
         .input-area { display: flex; gap: 8px; }
-        input { background: #111; border: 1px solid #00ff41; color: #fff; padding: 12px; outline: none; border-radius: 5px; }
-        button { background: #00ff41; color: #000; border: none; padding: 10px 20px; cursor: pointer; font-weight: bold; border-radius: 5px; }
-        .btn-pic { background: #D4AF37; color: #000; }
+        input { background: #111; border: 1px solid #00ff41; color: #fff; padding: 12px; outline: none; border-radius: 5px; width: 100%; box-sizing: border-box; }
+        button { background: #00ff41; color: #000; border: none; padding: 12px 20px; cursor: pointer; font-weight: bold; border-radius: 5px; }
+        .btn-pic { background: #D4AF37; }
     </style>
 </head>
 <body>
@@ -36,36 +34,32 @@
 
 <div id="login-area">
     <div class="auth-box">
-        <h3>🔐 ENTER PRIVATE KEY</h3>
+        <h3>🔐 PRIVATE ACCESS</h3>
         <input type="password" id="passInput" placeholder="Password...">
         <br><br>
-        <input type="text" id="userName" placeholder="Apna Naam (e.g. Nawab)">
+        <input type="text" id="userName" placeholder="Apna Naam (Nawab, etc)">
         <br><br>
-        <button onclick="accessChat()">ACCESS CHAT</button>
+        <button onclick="accessChat()">OPEN BUNKER</button>
     </div>
 </div>
 
 <div id="chat-container">
     <div id="messages"></div>
     <div class="input-area">
-        <input type="text" id="msgInput" style="flex:1;" placeholder="Type message...">
+        <input type="text" id="msgInput" placeholder="Type message..." onkeypress="if(event.keyCode==13) sendMsg()">
         <button onclick="sendMsg()">SEND</button>
     </div>
     <div style="margin-top:10px; display: flex; gap: 5px;">
         <input type="file" id="fileInput" style="display:none;" onchange="uploadFile(this.files[0])">
-        <button class="btn-pic" onclick="document.getElementById('fileInput').click()">📎 IMAGE</button>
-        <button onclick="location.reload()" style="background: red; color: white;">LOGOUT</button>
+        <button class="btn-pic" onclick="document.getElementById('fileInput').click()">📎 PIC</button>
+        <button onclick="location.reload()" style="background: red; color: white;">LOCK</button>
     </div>
 </div>
 
 <script>
-    // Firebase Configuration (Publicly usable for demo)
-    const firebaseConfig = {
-        databaseURL: "https://nawab-chat-default-rtdb.firebaseio.com/"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database().ref("messages");
-
+    // Nawab Private Connection Key (Direct & Realtime)
+    const ably = new Ably.Realtime('h3A96A.89z7pQ:uR6S8-e1R9-6X6-X'); 
+    const channel = ably.channels.get('nawab-brothers-room');
     let currentUser = "";
 
     function accessChat() {
@@ -75,58 +69,52 @@
         if(pass === "nawab786" && currentUser !== "") {
             document.getElementById('login-area').style.display = "none";
             document.getElementById('chat-container').style.display = "flex";
-            loadMessages();
+            
+            // Bhaiyo ko batane ke liye ke Nawab online aa gaya
+            channel.publish('msg', { user: "SYSTEM", text: `${currentUser} joined the bunker.`, type: 'text' });
         } else {
-            alert("WRONG PASSWORD OR NAME MISSING!");
+            alert("WRONG PASSWORD OR NAME!");
         }
     }
 
+    // Message Bhejna
     function sendMsg() {
         const msg = document.getElementById('msgInput').value;
         if(msg) {
-            db.push().set({
-                user: currentUser,
-                message: msg,
-                type: 'text',
-                time: Date.now()
-            });
+            channel.publish('msg', { user: currentUser, text: msg, type: 'text' });
             document.getElementById('msgInput').value = "";
         }
     }
 
+    // Photo Bhejna
     function uploadFile(file) {
         if(file) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                db.push().set({
-                    user: currentUser,
-                    message: e.target.result,
-                    type: 'image',
-                    time: Date.now()
-                });
+                channel.publish('msg', { user: currentUser, text: e.target.result, type: 'image' });
             };
             reader.readAsDataURL(file);
         }
     }
 
-    function loadMessages() {
-        db.on('child_added', (snapshot) => {
-            const data = snapshot.val();
-            const msgBox = document.getElementById('messages');
-            const div = document.createElement('div');
-            div.className = "msg-line";
-            
-            if(data.type === 'text') {
-                div.innerHTML = `<span class="msg-name">${data.user}:</span> ${data.message}`;
-            } else {
-                div.innerHTML = `<span class="msg-name">${data.user}:</span><br><img src="${data.message}" style="max-width:100%; border-radius:10px; margin-top:5px;">`;
-            }
-            
-            msgBox.appendChild(div);
-            msgBox.scrollTop = msgBox.scrollHeight;
-        });
-    }
+    // Messages Receive Karna (Real-time for everyone)
+    channel.subscribe('msg', (message) => {
+        const data = message.data;
+        const msgBox = document.getElementById('messages');
+        const div = document.createElement('div');
+        div.className = "msg-line";
+        
+        if(data.type === 'text') {
+            div.innerHTML = `<span class="msg-name">${data.user}:</span> <span class="my-msg">${data.text}</span>`;
+        } else {
+            div.innerHTML = `<span class="msg-name">${data.user}:</span><br><img src="${data.text}" style="max-width:200px; border-radius:10px; border: 1px solid #00ff41; margin-top:5px;">`;
+        }
+        
+        msgBox.appendChild(div);
+        msgBox.scrollTop = msgBox.scrollHeight;
+    });
 </script>
 
 </body>
-</html>
+    </html>
+    
